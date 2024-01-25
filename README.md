@@ -13,7 +13,7 @@ Lenguaje: Bash
 
 Exposing the XML-RPC interface in a WordPress site can pose significant security risks. This interface allows for remote procedure calls, which, if not properly secured, can be exploited by attackers. Script takes advantage of this error by sending a large number of requests to the XML-RPC interface. This allows for rapid testing of user credentials, effectively enabling password cracking. It's crucial to understand that while this tool can be used for security testing.
 
-##User Enumeration
+## User Enumeration
 
 The tool also includes a user enumeration feature. This is due to a particular behavior of WordPress: when a valid username is provided, regardless of the password, WordPress returns a distinct response compared to when an invalid username is provided. This tool capitalizes on this behavior to enumerate existing users, which can be invaluable for security testing purposes.
 
