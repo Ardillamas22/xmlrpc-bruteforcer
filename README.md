@@ -15,12 +15,13 @@ Exposing the XML-RPC interface in a WordPress site can pose significant security
 The tool also includes a user enumeration feature. This is due to a particular behavior of WordPress: when a valid username is provided, regardless of the password, WordPress returns a distinct response compared to when an invalid username is provided. This tool capitalizes on this behavior to enumerate existing users, which can be invaluable for security testing purposes.
 
 
-##Instalation
-‘’’bash
-git clone https://github.com/Ardillamas22/xmlrpc-bruteforcer 
+
+## Installation
+
+```bash
+git clone https://github.com/Ardillamas22/xmlrpc-bruteforcer
 cd xmlrpc-bruteforcer
 chmod +x ./xmlrpc-bruteforcer
-‘’’
 
 
 ##Usage
