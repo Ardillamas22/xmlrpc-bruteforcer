@@ -22,10 +22,18 @@ chmod +x ./xmlrpc-bruteforcer
 
 ##Usage
 ![helPanel](imagenes/panel.png)
+
+
 In terms of usage, the tool provides a straightforward 'helpPanel' message that explains how to use it. This message details all the necessary parameters and how to specify them. It serves as a guide, making the tool accessible and easy to use. This 'helpPanel' ensures that users can effectively utilize the tool for testing the security of WordPress sites.
 
 ##Interactive Mode
 ![helPanel](imagenes/interactive.png)
+
+
+
 The tool also features an interactive mode. In this mode, users are first prompted to select the mode they wish to enter.
 ![helPanel](imagenes/interactive2.png)
+
+
+
 Once a mode has been selected in the interactive mode, the tool will then prompt the user for all the necessary parameters. This step-by-step process ensures that all required information is gathered 
