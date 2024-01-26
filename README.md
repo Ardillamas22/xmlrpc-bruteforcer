@@ -57,3 +57,6 @@ The tool also features an interactive mode. In this mode, users are first prompt
 
 
 Once a mode has been selected in the interactive mode, the tool will then prompt the user for all the necessary parameters. This step-by-step process ensures that all required information is gathered 
+
+
+![finish](images/finish.png)
