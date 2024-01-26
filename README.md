@@ -16,7 +16,7 @@ Exposing the XML-RPC interface in a WordPress site can pose significant security
 ## User Enumeration
 
 The tool also includes a user enumeration feature. This is due to a particular behavior of WordPress: when a valid username is provided, regardless of the password, WordPress returns a distinct response compared to when an invalid username is provided. This tool capitalizes on this behavior to enumerate existing users, which can be invaluable for security testing purposes.
-
+Moreover, the script’s multithreading capability allows it to perform this user enumeration in parallel, significantly speeding up the process. By executing multiple enumeration tasks simultaneously, the script can quickly and efficiently identify valid usernames.
 
 
 ## Installation
