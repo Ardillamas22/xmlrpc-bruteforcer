@@ -11,7 +11,7 @@ Lenguaje: Bash
 ## Bruteforce passwords via xmlrpc 
 
 
-Exposing the XML-RPC interface in a WordPress site can pose significant security risks. This interface allows for remote procedure calls, which, if not properly secured, can be exploited by attackers. Script takes advantage of this error by sending a large number of requests to the XML-RPC interface. This allows for rapid testing of user credentials, effectively enabling password cracking. It's crucial to understand that while this tool can be used for security testing.
+Exposing the XML-RPC interface in a WordPress site can pose significant security risks. This interface allows for remote procedure calls, which, if not properly secured, can be exploited by attackers. Script takes advantage of this error by sending a large number of requests to the XML-RPC interface. This allows for rapid testing of user credentials, effectively enabling password cracking. This script employs multithreading, executing many tasks in parallel on the processor. This parallel execution significantly enhances the speed of the script, making it much more efficient. By distributing the workload across multiple threads, the script can send a large number of requests to the XML-RPC interface simultaneously. This allows for rapid testing of user credentials and drastically reduces the overall execution time. It's crucial to understand that while this tool can be used for security testing.
 
 ## User Enumeration
 
